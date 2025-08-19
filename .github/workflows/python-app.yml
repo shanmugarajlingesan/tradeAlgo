@@ -27,6 +27,7 @@ jobs:
 
       - name: Run scanner
         env:
+          EXCHANGE_ID: "bybit"
           MIN_SCORE: "70"
           TOP_K: "8"
           BTC_GUARD_MODE: "soft"
