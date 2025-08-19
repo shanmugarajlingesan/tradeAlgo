@@ -1,4 +1,5 @@
 name: Scan Crypto
+
 on:
   schedule:
     - cron: "5 * * * *"   # every hour at :05 (UTC)
@@ -9,12 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
       - name: Run scanner
         env:
           MIN_SCORE: "70"
@@ -23,22 +30,22 @@ jobs:
           REQUIRE_BTC_TREND: "true"
         run: |
           python crypto_long_scanner.py || true
-          # copy JSON to docs for GitHub Pages
           mkdir -p docs
           if [ -f scan_results.csv ]; then cp scan_results.csv docs/; fi
-          # Create JSON snapshot from CSV if needed
           python - <<'PY'
-import pandas as pd, json
-try:
+import pandas as pd, json, os
+if os.path.exists("scan_results.csv"):
     df = pd.read_csv("scan_results.csv")
-    open("docs/scan_results.json","w").write(df.to_json(orient="records"))
-except Exception as e:
+    with open("docs/scan_results.json","w") as f:
+        f.write(df.to_json(orient="records"))
+else:
     open("docs/scan_results.json","w").write("[]")
 PY
+
       - name: Commit & push
         run: |
-          git config user.name "gh-actions"
-          git config user.email "actions@users.noreply.github.com"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
           git add docs/*
           git commit -m "update scan results" || echo "no changes"
           git push
