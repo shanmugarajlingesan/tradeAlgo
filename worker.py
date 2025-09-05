@@ -1,29 +1,33 @@
-import os
-import requests
-import time
-import json
-import traceback
-
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-SCAN_URL = "https://shanntry-tradingalgo.hf.space/scan_all?signalTf=1h&exchangeId=okx&topN=60&minCandles=220&useBinanceUniverse=false&restrictToBinance=true"
-
 def scan_and_notify():
     try:
         resp = requests.get(SCAN_URL)
         resp.raise_for_status()
         data = resp.json()
 
-        message = json.dumps(data, indent=2)[:4000]  # pretty-format & trim
-        send_message(message)
-    except Exception as e:
+        if not isinstance(data, list):
+            send_message("⚠️ API did not return a list")
+            return
+
+        # Limit number of rows to avoid huge messages
+        rows = data[:15]
+
+        # Extract headers from keys of first item
+        headers = list(rows[0].keys())
+
+        # Build table
+        table_lines = []
+        header_line = " | ".join(h[:10].ljust(10) for h in headers)  # trim long headers
+        sep_line = "-+-".join("-" * 10 for _ in headers)
+        table_lines.append(header_line)
+        table_lines.append(sep_line)
+
+        for row in rows:
+            line = " | ".join(str(row.get(h, ""))[:10].ljust(10) for h in headers)
+            table_lines.append(line)
+
+        table = "```\n" + "\n".join(table_lines) + "\n```"
+
+        send_message(table)
+
+    except Exception:
         send_message(f"❌ Error in scan:\n{traceback.format_exc()}")
-
-def send_message(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": text}
-    requests.post(url, json=payload)
-
-if __name__ == "__main__":
-    scan_and_notify()
