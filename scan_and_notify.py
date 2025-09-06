@@ -1,5 +1,4 @@
 import requests
-import json
 from tabulate import tabulate
 
 TELEGRAM_TOKEN = "8137258652:AAGgbKbx7lDEoLBSaaFSQah7Gupgm5fL9QU"
@@ -18,27 +17,29 @@ def scan_and_notify():
         resp.raise_for_status()
         data = resp.json()
 
-        signals = []
-        if isinstance(data, list):
-            signals = data
-        elif isinstance(data, dict):
-            signals = data.get("signals") or data.get("data") or []
+        signals = data.get("results", [])
 
         if not signals:
-            send_telegram("⚠️ No valid signals found.")
+            send_telegram("⚠️ No trading signals found in API response.")
             return
 
         table_data = []
         for sig in signals:
-            symbol = sig.get("symbol") or sig.get("coin") or "?"
-            signal = sig.get("signal") or sig.get("status") or "?"
-            score = sig.get("score") or "?"
-            entry = sig.get("entry") or "-"
-            t1 = sig.get("target1") or "-"
-            t2 = sig.get("target2") or "-"
-            table_data.append([symbol, signal, score, entry, t1, t2])
+            symbol = sig.get("symbol", "?")
+            signal = sig.get("state", "?")   # <- use state
+            score = sig.get("score", "-")
+            entry = sig.get("entry", "-")
+            stop = sig.get("stop", "-")
+            t1 = sig.get("tp1", "-")
+            t2 = sig.get("tp2", "-")
+            table_data.append([symbol, signal, score, entry, stop, t1, t2])
 
-        table = tabulate(table_data, headers=["Coin", "Signal", "Score", "Entry", "T1", "T2"], tablefmt="pretty")
+        table = tabulate(
+            table_data,
+            headers=["Coin", "Signal", "Score", "Entry", "Stop", "T1", "T2"],
+            tablefmt="pretty"
+        )
+
         send_telegram(f"📊 *Scan Results*\n```\n{table}\n```")
 
     except Exception as e:
